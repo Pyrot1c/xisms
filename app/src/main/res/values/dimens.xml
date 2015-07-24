@@ -1,0 +1,20 @@
+<resources>
+
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+
+    <dimen name="navigation_drawer_width">240dp</dimen>
+
+    <dimen name="row_content_margin_start">56dp</dimen>
+    <dimen name="row_padding_start">16dp</dimen>
+    <dimen name="row_padding_end">16dp</dimen>
+    <dimen name="row_photo_icon_dimen">48dp</dimen>
+    <dimen name="row_single_height">56dp</dimen>
+    <dimen name="row_double_height">72dp</dimen>
+    <dimen name="row_text_padding_top_first">20dp</dimen>
+    <dimen name="row_text_padding_top_second">44dp</dimen>
+
+    <dimen name="font_size_normal">16sp</dimen>
+    <dimen name="font_size_secondary">14sp</dimen>
+
+</resources>
