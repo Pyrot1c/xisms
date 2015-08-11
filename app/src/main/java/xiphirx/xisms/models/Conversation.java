@@ -2,67 +2,95 @@ package xiphirx.xisms.models;
 
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.net.Uri;
 import android.provider.ContactsContract;
-import android.provider.Telephony;
+import android.provider.Telephony.Threads;
 import android.util.Log;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import xiphirx.xisms.utilities.Check;
 
 /**
  * Created by xiphirx on 6/16/15.
  */
 public class Conversation {
-    public static final String[] PROJECTION = {
-            Telephony.Sms.Conversations._ID,
-            Telephony.Sms.Conversations.ADDRESS,
-            Telephony.Sms.Conversations.PERSON,
-            Telephony.Sms.Conversations.BODY,
-            Telephony.Sms.Conversations.DATE
-    };
+    public static final Uri CONTENT_URI =
+            Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
+
+    private enum Columns {
+        ID(Threads._ID),
+        DATE(Threads.DATE),
+        RECIPIENTS(Threads.RECIPIENT_IDS),
+        SNIPPET(Threads.SNIPPET),
+        SNIPPET_CHARSET(Threads.SNIPPET_CHARSET),
+        READ(Threads.READ),
+        ERROR(Threads.ERROR),
+        ATTACHMENT(Threads.HAS_ATTACHMENT);
+
+        public final String column;
+
+        Columns(final String column) {
+            this.column = column;
+        }
+
+        static String[] getProjection() {
+            final Columns[] values = values();
+            final String[] columns = new String[values.length];
+
+            for (int i = 0; i < columns.length; ++i) {
+                columns[i] = values[i].column;
+            }
+
+            return columns;
+        }
+    }
+
+    public static final String[] PROJECTION = Columns.getProjection();
 
     private long mId;
     private long mDate;
 
-    private String mContact;
-    private String mPreviewText;
+    private boolean mRead;
+    private boolean mHasError;
+    private boolean mHasAttachment;
+
+    private String mSnippet;
+    private String mRecipientDisplay;
+
+    private List<Contact> mRecipients;
 
     public Conversation(final ContentResolver contentResolver, final Cursor cursor) {
-        if (cursor == null || cursor.isClosed()) {
-            throw new IllegalArgumentException("Given a null cursor");
+        Check.notNull(contentResolver, "Content Resolver");
+        Check.notNull(cursor, "Cursor");
+
+        if (cursor.isClosed()) {
+            throw new IllegalArgumentException("Cursor is closed");
         }
 
-        mId = cursor.getLong(cursor.getColumnIndexOrThrow(PROJECTION[0]));
-        mDate = cursor.getLong(cursor.getColumnIndexOrThrow(PROJECTION[4]));
+        mId = cursor.getLong(Columns.ID.ordinal());
+        mDate = cursor.getLong(Columns.DATE.ordinal());
+        mSnippet = cursor.getString(Columns.SNIPPET.ordinal());
+        mRead = cursor.getInt(Columns.READ.ordinal()) == 0;
+        mHasError = cursor.getInt(Columns.ERROR.ordinal()) != 0;
+        mHasAttachment = cursor.getInt(Columns.ATTACHMENT.ordinal()) != 0;
 
-        final String person = cursor.getString(cursor.getColumnIndexOrThrow(PROJECTION[2]));
-        final String body = cursor.getString(cursor.getColumnIndexOrThrow(PROJECTION[3]));
-        if (person != null) {
-            mPreviewText = body;
+        mRecipients = Contact.fromIds(contentResolver,
+                cursor.getString(Columns.RECIPIENTS.ordinal()));
+
+        if (mRecipients.size() == 1) {
+            mRecipientDisplay = mRecipients.get(0).getDisplayName();
         } else {
-            mPreviewText = "You: " + body;
+            final StringBuilder stringBuilder = new StringBuilder();
+            for (final Contact contact : mRecipients) {
+                stringBuilder
+                        .append(contact.getDisplayName())
+                        .append(", ");
+            }
+
+            mRecipientDisplay = stringBuilder.toString();
         }
-
-        final String address = cursor.getString(cursor.getColumnIndexOrThrow(PROJECTION[1]));
-        final Cursor contact = contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                new String[] {ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY},
-                ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER + " = ?",
-                new String[] {address},
-                null);
-
-        if (contact == null) {
-            mContact = address;
-            return;
-        }
-
-        if (contact.getCount() > 0) {
-            contact.moveToFirst();
-            mContact = contact.getString(0);
-        } else {
-            mContact = address;
-        }
-
-        contact.close();
     }
 
     public long getId() {
@@ -70,11 +98,11 @@ public class Conversation {
     }
 
     public String getContact() {
-        return mContact;
+        return mRecipientDisplay;
     }
 
     public String getPreviewText() {
-        return mPreviewText;
+        return mSnippet;
     }
 
     public String getTimeAgo() {
@@ -89,8 +117,12 @@ public class Conversation {
             return mins + " min";
         } else if (days < 1) {
             return hours + " hr";
-        } else {
+        } else if (days < 30) {
             return days + " days";
+        } else if (days < 365) {
+            return days + " months";
+        } else {
+            return days + " years";
         }
     }
 }

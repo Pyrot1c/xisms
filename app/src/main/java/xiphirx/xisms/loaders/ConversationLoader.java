@@ -6,16 +6,13 @@ import android.content.Context;
 import android.database.Cursor;
 import android.os.CancellationSignal;
 import android.os.OperationCanceledException;
-import android.provider.ContactsContract;
 import android.provider.Telephony;
-import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-import xiphirx.xisms.adapters.ConversationAdapter;
 import xiphirx.xisms.models.Conversation;
-import xiphirx.xisms.utilities.StreamUtilities;
 
 /**
  * Created by xiphirx on 6/16/15.
@@ -39,10 +36,11 @@ public class ConversationLoader extends AsyncTaskLoader<List<Conversation>> {
 
             mCancellationSignal = new CancellationSignal();
         }
+
         try {
             final ContentResolver contentResolver = getContext().getContentResolver();
             final Cursor cursor = contentResolver.query(
-                    Telephony.MmsSms.CONTENT_CONVERSATIONS_URI,
+                    Conversation.CONTENT_URI,
                     Conversation.PROJECTION,
                     null,
                     null,
@@ -50,7 +48,7 @@ public class ConversationLoader extends AsyncTaskLoader<List<Conversation>> {
                     mCancellationSignal);
 
             if (cursor == null) {
-                return null;
+                return Collections.emptyList();
             }
 
             final int count = cursor.getCount();
